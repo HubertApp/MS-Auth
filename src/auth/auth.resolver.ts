@@ -9,14 +9,14 @@ export class AuthResolver {
   constructor(private jwtService: JwtService, private authService: AuthService) {}
   @Query('me')
   @UseGuards(JwtAuthGuard)
-  getMe(@Context() context: any) {
-    const userPayload = context.req.user;
-    
-    return {
-      id: userPayload.userId,
-      email: userPayload.email,
-      pseudo: userPayload.pseudo,
-    };
+  async getMe(@Context() context: any) {
+    const user = await this.authService.findById(context.req.user.id);
+    return user;
+  }
+
+  @Query('users')
+  async getAllUsers(@Context() context: any) {
+    return this.authService.getAllUsers();
   }
 
   @Mutation('googleLogin')

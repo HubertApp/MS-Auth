@@ -14,8 +14,6 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
           passReqToCallback: false,
           
       } as StrategyOptions);
-      console.log('GOOGLE_CLIENT_ID = ', config.get('GOOGLE_CLIENT_ID'));
-
   }
 
   async validate(

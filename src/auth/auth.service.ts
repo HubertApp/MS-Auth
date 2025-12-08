@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 
+
 @Injectable()
 export class AuthService {
   private users: any[] = []; 
@@ -28,7 +29,18 @@ export class AuthService {
     return user;
   }
 
+  async findById(id: number) {
+    return this.users.find(u => u.id === id);
+  }
 
+  async findByEmail(email: string) {
+    return this.users.find(u => u.email === email);
+  }
+
+  async getAllUsers() {
+    return this.users;
+  }
+  
   async getJwtToken(user: { id: number; email: string, pseudo: string }) {
     const payload = { email: user.email, sub: user.id, pseudo: user.pseudo };
     return this.jwtService.sign(payload);
