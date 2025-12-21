@@ -4,14 +4,13 @@ import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { AuthModule } from './auth/auth.module';
 import { ConfigModule } from '@nestjs/config';
 
-
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal: true, 
+      isGlobal: true,
     }),
     GraphQLModule.forRoot<ApolloDriverConfig>({
-      driver : ApolloDriver,
+      driver: ApolloDriver,
       playground: true,
       typePaths: ['./**/*.graphql'],
     }),

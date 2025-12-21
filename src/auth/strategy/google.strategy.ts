@@ -1,32 +1,36 @@
 import { PassportStrategy } from '@nestjs/passport';
-import { Strategy, VerifyCallback, StrategyOptions } from 'passport-google-oauth20';
+import {
+  Strategy,
+  VerifyCallback,
+  StrategyOptions,
+} from 'passport-google-oauth20';
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config'; 
+import { ConfigService } from '@nestjs/config';
+import { Profile } from 'passport';
 
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
-      constructor(config: ConfigService) {
-            super({
-            clientID: config.get<string>('GOOGLE_CLIENT_ID'),
-            clientSecret: config.get<string>('GOOGLE_SECRET'),
-            callbackURL: config.get<string>('GOOGLE_CALLBACK_URL'),
-          scope: ['email', 'profile'],
-          passReqToCallback: false,
-          
-      } as StrategyOptions);
+  constructor(config: ConfigService) {
+    super({
+      clientID: config.get<string>('GOOGLE_CLIENT_ID'),
+      clientSecret: config.get<string>('GOOGLE_SECRET'),
+      callbackURL: config.get<string>('GOOGLE_CALLBACK_URL'),
+      scope: ['email', 'profile'],
+      passReqToCallback: false,
+    } as StrategyOptions);
   }
 
-  async validate(
+  validate(
     accessToken: string,
     refreshToken: string,
-    profile: any,
+    profile: Profile,
     done: VerifyCallback,
-  ): Promise<any> {
+  ) {
     const { name, emails, id } = profile;
     const user = {
-        email: emails[0].value,
-        pseudo: name.givenName,
-        googleId: id,
+      email: emails && emails[0] ? emails[0].value : null,
+      pseudo: name?.givenName || profile.displayName,
+      googleId: id,
     };
     done(null, user);
   }

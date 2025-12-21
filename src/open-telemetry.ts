@@ -2,8 +2,8 @@
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 import { ExpressInstrumentation } from '@opentelemetry/instrumentation-express';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
-import { NodeTracerProvider } from "@opentelemetry/node";
-import { SimpleSpanProcessor, ConsoleSpanExporter } from "@opentelemetry/tracing";
+import { NodeTracerProvider } from '@opentelemetry/node';
+import { SimpleSpanProcessor } from '@opentelemetry/tracing';
 import { Resource } from '@opentelemetry/resources';
 import { ZipkinExporter } from '@opentelemetry/exporter-zipkin';
 
@@ -17,16 +17,18 @@ registerInstrumentations({
     new ExpressInstrumentation(),
     // **DELETE IF SETTING UP A GATEWAY, UNCOMMENT OTHERWISE**
     //new GraphQLInstrumentation()
-  ]
+  ],
 });
 
 // Initialize provider and identify this particular service
 // (in this case, we're implementing a federated gateway)
 const provider = new NodeTracerProvider({
-  resource: Resource.default().merge(new Resource({
-    // Replace with any string to identify this service in your system
-    "service.name": "auth",
-  })),
+  resource: Resource.default().merge(
+    new Resource({
+      // Replace with any string to identify this service in your system
+      'service.name': 'auth',
+    }),
+  ),
 });
 
 // Configure a test exporter to print all traces to the console
