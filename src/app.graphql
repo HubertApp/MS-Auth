@@ -5,3 +5,26 @@ type Query {
 type Mutation {
   _ : Boolean
 }
+
+type User {
+    id: ID!
+    username: String
+    age: Int
+    email: String
+    handicape : Boolean
+}
+
+type AuthPayload {
+  user: User!
+  accessToken: String!
+}
+
+extend type Query {
+  me: User
+  users: [User!]!
+}
+
+extend type Mutation {
+  googleLogin(googleId: String!, email: String!, pseudo: String): AuthPayload!
+  # jwtLogin(email: String!, password: String!, pseudo: String): AuthPayload!
+}
