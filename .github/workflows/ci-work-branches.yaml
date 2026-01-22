@@ -21,10 +21,9 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install and Lint
+      - name: Install, Lint and Test
         run: |
-          make install
-          make lint
+          make validate
 
   sonarqube:
     name: SonarQube

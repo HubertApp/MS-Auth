@@ -7,12 +7,11 @@ export const CurrentUser = createParamDecorator(
     const ctx = GqlExecutionContext.create(context);
     const request = ctx.getContext().req;
 
-    const userId: string = request.headers['x-user-id'];
-    const role: string = request.headers['x-user-role'];
-    const email: string = request.headers['x-user-email'];
-    const pseudo: string = request.headers['x-user-pseudo'];
-    const age: number = request.headers['x-user-age'];
-
+    const userId: string = request.headers['x-user-id'] as string;
+    const role: string = request.headers['x-user-role'] as string;
+    const email: string = request.headers['x-user-email'] as string;
+    const pseudo: string = request.headers['x-user-pseudo'] as string;
+    const age: number = request.headers['x-user-age'] as number;
     if (!userId) {
       throw new Error('User ID not found in request headers');
     }
