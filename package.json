@@ -24,10 +24,10 @@
     "@apollo/server": "^5.1.0",
     "@apollo/subgraph": "^2.12.1",
     "@as-integrations/express5": "^1.1.2",
-    "@nestjs/apollo": "^13.2.1",
+    "@nestjs/apollo": "^13.2.3",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
-    "@nestjs/core": "^11.0.1",
+    "@nestjs/core": "^11.1.12",
     "@nestjs/graphql": "^13.2.0",
     "@nestjs/jwt": "^11.0.1",
     "@nestjs/mapped-types": "*",
@@ -43,6 +43,7 @@
     "@willsoto/nestjs-prometheus": "^6.0.2",
     "graphql": "^16.12.0",
     "graphql-request": "^7.3.5",
+    "helmet": "^8.1.0",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "passport-jwt": "^4.0.1",
@@ -97,5 +98,10 @@
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
+  },
+  "overrides": {
+    "lodash": "^4.17.21",
+    "qs": "^6.14.1",
+    "tar": "^7.4.3"
   }
 }

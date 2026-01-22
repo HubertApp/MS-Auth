@@ -1,64 +1,65 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-// import { GraphQLClient, gql } from 'graphql-request';
-import { User } from './entities/user.entity';
+import { GraphQLClient, gql } from 'graphql-request';
 import { CreateAuthInput } from './dto/create-auth.input';
 
 @Injectable()
 export class AuthService {
-  private users: User[] = [];
-  constructor(private jwtService: JwtService) {
-    this.users = [{ id: '1', email: 'test@gmail.com', pseudo: 'Adel' }];
-  }
+  constructor(private jwtService: JwtService) {}
 
-  findOrCreateUser(user: CreateAuthInput): User {
-    let cli = this.users.find((u) => u.email === user.email);
-    //   const client = new GraphQLClient('http://localhost:3002/graphql');
+  async findOrCreateUser(user: CreateAuthInput): Promise<any> {
+    const client = new GraphQLClient('http://localhost:3001/graphql');
 
-    //   const cli = client.request(gql`
-    //   query {
-    //     getByEmail(userId: "${user.email}") {
-    //       id
-    //       total
-    //     }
-    //   }
-    // `);
+    const CREATE_USER_MUTATION = gql`
+      mutation CreateUser($input: CreateUserInput!) {
+        createUser(createUserInput: $input) {
+          googleId
+          email
+          pseudo
+          age
+          role
+        }
+      }
+    `;
 
-    if (!cli) {
-      cli = {
-        id: user.googleId,
-        email: user.email,
-        pseudo: user.pseudo,
-      };
-      this.users.push(cli);
-      console.log('Inscription:', cli);
-    } else {
-      console.log('Connexion:', cli);
+    try {
+      const response: any = await client.request(CREATE_USER_MUTATION, {
+        input: {
+          googleId: user.googleId,
+          email: user.email,
+          pseudo: user.pseudo,
+          age: user.age,
+          role: user.role,
+        },
+      });
+
+      return response.createUser;
+    } catch (error) {
+      console.error("Erreur lors de l'appel à MS-User: " + error);
+      throw new Error(
+        "Impossible de synchroniser l'utilisateur avec MS-User : " + error,
+      );
     }
-
-    return cli;
   }
 
-  findById(id: string) {
-    const user: User | undefined = this.users.find((u) => u.id === id);
-    return user;
-  }
-
-  findByEmail(email: string) {
-    return this.users.find((u) => u.email === email);
-  }
-
-  getAllUsers() {
-    const users: User[] = this.users;
-    return users;
-  }
-
-  getJwtToken(user: User) {
+  getJwtToken(user: CreateAuthInput) {
     const payload = {
       email: user.email,
-      sub: user.id,
+      sub: user.googleId,
       pseudo: user.pseudo,
+      role: user.role,
+      age: user.age,
     };
     return this.jwtService.sign(payload);
+  }
+
+  createRefreshToken(user: CreateAuthInput) {
+    const payload = {
+      sub: user.googleId,
+    };
+    return this.jwtService.sign(payload, {
+      secret: 'refreshSecretKey',
+      expiresIn: '7d',
+    });
   }
 }

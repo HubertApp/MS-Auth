@@ -1,10 +1,8 @@
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { Injectable } from '@nestjs/common';
-import { UnauthorizedException } from '../exception/unauthorized.exception';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from '../auth.service';
-// import { JwtPayload } from 'jsonwebtoken';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -19,15 +17,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  validate(payload: { sub: string; email: string }) {
-    const user = this.authService.findById(payload.sub);
+  // validate(payload) {
+  // const user = this.authService.findById(payload.sub);
 
-    if (!user) {
-      throw new UnauthorizedException(
-        'Jeton invalide ou utilisateur non trouvé.',
-      );
-    }
+  // if (!user) {
+  //   throw new UnauthorizedException(
+  //     'Jeton invalide ou utilisateur non trouvé.',
+  //   );
+  // }
 
-    return user;
+  // return payload;
+  // }
+  validate(): void {
+    console.log('JWT validated');
   }
 }
