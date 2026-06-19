@@ -16,9 +16,16 @@ import { JwtStrategy } from './strategy/jwt.strategy';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get('JWT_SECRET') || 'DEFAULT_SECRET',
+        privateKey: configService
+          .get<string>('JWT_PRIVATE_KEY')!
+          .replace(/\\n/g, '\n'),
+        publicKey: configService
+          .get<string>('JWT_PUBLIC_KEY')!
+          .replace(/\\n/g, '\n'),
         signOptions: {
+          algorithm: 'RS256',
           expiresIn: configService.get('JWT_EXPIRATION_TIME') || '60m',
+          keyid: 'auth-key-1',
         },
       }),
     }),

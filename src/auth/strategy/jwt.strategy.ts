@@ -13,22 +13,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_SECRET') || 'DEFAULT_SECRET',
+      secretOrKey: configService
+        .get<string>('JWT_PUBLIC_KEY')!
+        .replace(/\\n/g, '\n'),
+      algorithms: ['RS256'],
     });
   }
 
-  // validate(payload) {
-  // const user = this.authService.findById(payload.sub);
-
-  // if (!user) {
-  //   throw new UnauthorizedException(
-  //     'Jeton invalide ou utilisateur non trouvé.',
-  //   );
-  // }
-
-  // return payload;
-  // }
-  validate(): void {
-    console.log('JWT validated');
+  validate(payload: any): void {
+    return payload;
   }
 }

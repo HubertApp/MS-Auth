@@ -1,0 +1,11 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+type User {
+  googleId: ID!
+}
+
+type Mutation {
+  refreshToken(refreshToken: String!): User!
+}

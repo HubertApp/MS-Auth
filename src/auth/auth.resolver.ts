@@ -1,32 +1,23 @@
-import { Resolver } from '@nestjs/graphql';
-import { AuthService } from './auth.service';
-import { Auth } from './entities/auth.entity';
-// import { CreateAuthInput } from './dto/create-auth.input';
+// import { Resolver } from '@nestjs/graphql';
+// import { AuthService } from './auth.service';
+// import { Auth } from './entities/auth.entity';
+// // import { User } from './entities/user.entity';
 
-@Resolver(() => Auth)
-export class AuthResolver {
-  constructor(private authService: AuthService) {}
+// @Resolver(() => Auth)
+// export class AuthResolver {
+//   constructor(private authService: AuthService) {}
 
-  // @Mutation(() => Auth)
-  // async googleLogin(
-  //   @Args('googleId') googleId: string,
-  //   @Args('email') email: string,
-  //   @Args('pseudo') pseudo: string,
-  //   @Args('age') age: number,
-  //   @Args('role') role: string,
-  // ) {
-  //   const user: CreateAuthInput = await this.authService.findOrCreateUser({
-  //     googleId,
-  //     email,
-  //     pseudo,
-  //     age,
-  //     role,
-  //   });
+//   // @Query(() => String)
+//   // hello(): string {
+//   //   return 'Hello from Auth Service!';
+//   // }
 
-  //   const accessToken = this.authService.getJwtToken(user);
+//   // @Mutation(() => User)
+//   // async refreshToken(
+//   //   @Args('refreshToken') refreshToken: string,
+//   // ): Promise<string> {
+//   //   return 'this.authService.refreshToken(refreshToken);';
+//   // }
 
-  //   return {
-  //     accessToken: accessToken,
-  //   };
-  // }
-}
+//   // Faudra que j'ajoute une fonction pour le refresh token plus tard / actuellement jeton JWT avec expiration simple renvoyer via controller REST
+// }

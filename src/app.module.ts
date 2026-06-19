@@ -16,6 +16,7 @@ import { ConfigModule } from '@nestjs/config';
       driver: ApolloFederationDriver,
       playground: true,
       autoSchemaFile: {
+        path: 'auth-schema.gql',
         federation: 2,
       },
     }),
