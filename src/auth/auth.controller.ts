@@ -15,8 +15,7 @@ import { AuthService } from './auth.service';
 import { JwtService } from '@nestjs/jwt';
 import { CreateAuthInput } from './dto/create-auth.input';
 
-// 📱 Guard custom : permet de transmettre la plateforme d'origine (web/android)
-// à travers le round-trip OAuth via le paramètre "state", que Google nous renvoie tel quel.
+
 @Injectable()
 export class GoogleAuthGuard extends AuthGuard('google') {
   getAuthenticateOptions(context: ExecutionContext) {
