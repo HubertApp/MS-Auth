@@ -2,13 +2,18 @@ import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { GraphQLClient, gql } from 'graphql-request';
 import { CreateAuthInput } from './dto/create-auth.input';
+import { ConfigService } from '@nestjs/config';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
-  constructor(private jwtService: JwtService) {}
+  constructor(
+    private jwtService: JwtService,
+    private configService: ConfigService,
+  ) {}
 
   async findOrCreateUser(user: CreateAuthInput): Promise<any> {
-    const client = new GraphQLClient('http://localhost:3001/graphql');
+    const client = new GraphQLClient('http://service-user:3001/graphql');
 
     const CREATE_USER_MUTATION = gql`
       mutation CreateUser($input: CreateUserInput!) {
@@ -53,13 +58,23 @@ export class AuthService {
     return this.jwtService.sign(payload);
   }
 
-  createRefreshToken(user: CreateAuthInput) {
-    const payload = {
-      sub: user.googleId,
+  getJwks() {
+    const publicKeyPem = this.configService
+      .get<string>('JWT_PUBLIC_KEY')!
+      .replace(/\\n/g, '\n');
+
+    const publicKey = crypto.createPublicKey(publicKeyPem);
+    const jwk = publicKey.export({ format: 'jwk' });
+
+    return {
+      keys: [
+        {
+          ...jwk,
+          use: 'sig',
+          alg: 'RS256',
+          kid: 'auth-key-1',
+        },
+      ],
     };
-    return this.jwtService.sign(payload, {
-      secret: 'refreshSecretKey',
-      expiresIn: '7d',
-    });
   }
 }

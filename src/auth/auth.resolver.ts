@@ -1,32 +1,39 @@
-import { Resolver } from '@nestjs/graphql';
+import { Resolver, Mutation, Args } from '@nestjs/graphql';
+import { OAuth2Client } from 'google-auth-library';
 import { AuthService } from './auth.service';
 import { Auth } from './entities/auth.entity';
-// import { CreateAuthInput } from './dto/create-auth.input';
 
-@Resolver(() => Auth)
+@Resolver()
 export class AuthResolver {
+  private googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
   constructor(private authService: AuthService) {}
 
-  // @Mutation(() => Auth)
-  // async googleLogin(
-  //   @Args('googleId') googleId: string,
-  //   @Args('email') email: string,
-  //   @Args('pseudo') pseudo: string,
-  //   @Args('age') age: number,
-  //   @Args('role') role: string,
-  // ) {
-  //   const user: CreateAuthInput = await this.authService.findOrCreateUser({
-  //     googleId,
-  //     email,
-  //     pseudo,
-  //     age,
-  //     role,
-  //   });
+  @Mutation(() => Auth)
+  async loginWithGoogle(@Args('idToken') idToken: string) {
+    const ticket = await this.googleClient.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
 
-  //   const accessToken = this.authService.getJwtToken(user);
+    const payload = ticket.getPayload();
+    if (!payload) throw new Error('ID token invalide');
 
-  //   return {
-  //     accessToken: accessToken,
-  //   };
+    const user = await this.authService.findOrCreateUser({
+      googleId: payload.sub,
+      email: payload.email!,
+      pseudo: payload.given_name || payload.name!,
+      age: 0,
+      role: 'USER',
+    });
+
+    return { accessToken: this.authService.getJwtToken(user) };
+  }
+
+  // @Mutation(() => User)
+  // async refreshToken(
+  //     @Args('refreshToken') refreshToken: string,
+  // ): Promise<string> {
+  //     return this.authService.refreshToken(refreshToken);
   // }
 }
