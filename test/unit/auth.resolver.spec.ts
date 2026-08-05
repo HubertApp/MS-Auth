@@ -1,10 +1,18 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthResolver } from '../../src/auth/auth.resolver';
-import { User } from '../../src/auth/entities/user.entity';
 import { AuthService } from '../../src/auth/auth.service';
+
+const mockVerifyIdToken = jest.fn();
+
+jest.mock('google-auth-library', () => ({
+  OAuth2Client: jest.fn().mockImplementation(() => ({
+    verifyIdToken: mockVerifyIdToken,
+  })),
+}));
 
 describe('AuthResolver', () => {
   let resolver: AuthResolver;
+  let authService: AuthService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -13,47 +21,64 @@ describe('AuthResolver', () => {
         {
           provide: AuthService,
           useValue: {
-            JwtService: {
-              sign: jest.fn(() => 'token_test'),
-              verify: jest.fn(),
-            },
+            findOrCreateUser: jest.fn(),
+            getJwtToken: jest.fn(),
           },
         },
       ],
     }).compile();
 
     resolver = module.get<AuthResolver>(AuthResolver);
+    authService = module.get<AuthService>(AuthService);
   });
 
   it('should be defined', () => {
     expect(resolver).toBeDefined();
   });
 
-  // test('should get the current user', () => {
-  //   const req: Request & { user?: User } = {
-  //     user: {
-  //       id: '1',
-  //       email: 'test@example.com',
-  //       pseudo: 'TestUser',
-  //     },
-  //   } as Request & { user?: User };
+  describe('loginWithGoogle', () => {
+    it('should call authService and return an access token when token is valid', async () => {
+      const payload = {
+        sub: 'google-123',
+        email: 'user@test.com',
+        given_name: 'User',
+      };
+      mockVerifyIdToken.mockResolvedValue({
+        getPayload: () => payload,
+      });
+      (authService.findOrCreateUser as jest.Mock).mockResolvedValue({
+        googleId: payload.sub,
+        email: payload.email,
+        pseudo: payload.given_name,
+        age: 0,
+        role: 'USER',
+      });
+      (authService.getJwtToken as jest.Mock).mockReturnValue('jwt-token');
 
-  //   const user = resolver.getMe(req);
-  //   expect(user).toBeDefined();
-  //   expect(user).toHaveProperty('id', '1');
-  //   expect(user).toHaveProperty('email', 'test@example.com');
-  //   expect(user).toHaveProperty('pseudo', 'TestUser');
-  // });
-  // test('should get all users', () => {
-  //   const users = resolver.getAllUsers();
-  //   expect(users.length).toBeGreaterThan(0);
-  // });
+      const result = await resolver.loginWithGoogle('valid-id-token');
 
-  // test('should login or register a user via Google', () => {
-  //   const googleId = '2';
-  //   const email = '<EMAIL>';
-  //   const pseudo = 'GoogleUser';
-  //   const user = resolver.loginOrRegisterGoogle({ googleId, email, pseudo });
-  //   expect(user).toBeDefined();
-  // });
+      expect(mockVerifyIdToken).toHaveBeenCalledWith({
+        idToken: 'valid-id-token',
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+      expect(authService.findOrCreateUser).toHaveBeenCalledWith({
+        googleId: payload.sub,
+        email: payload.email,
+        pseudo: payload.given_name,
+        age: 0,
+        role: 'USER',
+      });
+      expect(authService.getJwtToken).toHaveBeenCalled();
+      expect(result).toEqual({ accessToken: 'jwt-token' });
+    });
+
+    it('should throw an error when token payload is missing', async () => {
+      mockVerifyIdToken.mockResolvedValue({
+        getPayload: () => null,
+      });
+
+      await expect(resolver.loginWithGoogle('invalid-id-token')).rejects.toThrow('ID token invalide');
+      expect(authService.findOrCreateUser).not.toHaveBeenCalled();
+    });
+  });
 });

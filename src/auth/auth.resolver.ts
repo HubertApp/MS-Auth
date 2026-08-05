@@ -1,23 +1,39 @@
-// import { Resolver } from '@nestjs/graphql';
-// import { AuthService } from './auth.service';
-// import { Auth } from './entities/auth.entity';
-// // import { User } from './entities/user.entity';
+import { Resolver, Mutation, Args } from '@nestjs/graphql';
+import { OAuth2Client } from 'google-auth-library';
+import { AuthService } from './auth.service';
+import { Auth } from './entities/auth.entity';
 
-// @Resolver(() => Auth)
-// export class AuthResolver {
-//   constructor(private authService: AuthService) {}
+@Resolver()
+export class AuthResolver {
+  private googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-//   // @Query(() => String)
-//   // hello(): string {
-//   //   return 'Hello from Auth Service!';
-//   // }
+  constructor(private authService: AuthService) {}
 
-//   // @Mutation(() => User)
-//   // async refreshToken(
-//   //   @Args('refreshToken') refreshToken: string,
-//   // ): Promise<string> {
-//   //   return 'this.authService.refreshToken(refreshToken);';
-//   // }
+  @Mutation(() => Auth)
+  async loginWithGoogle(@Args('idToken') idToken: string) {
+    const ticket = await this.googleClient.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
 
-//   // Faudra que j'ajoute une fonction pour le refresh token plus tard / actuellement jeton JWT avec expiration simple renvoyer via controller REST
-// }
+    const payload = ticket.getPayload();
+    if (!payload) throw new Error('ID token invalide');
+
+    const user = await this.authService.findOrCreateUser({
+      googleId: payload.sub,
+      email: payload.email!,
+      pseudo: payload.given_name || payload.name!,
+      age: 0,
+      role: 'USER',
+    });
+
+    return { accessToken: this.authService.getJwtToken(user) };
+  }
+
+  // @Mutation(() => User)
+  // async refreshToken(
+  //     @Args('refreshToken') refreshToken: string,
+  // ): Promise<string> {
+  //     return this.authService.refreshToken(refreshToken);
+  // }
+}
