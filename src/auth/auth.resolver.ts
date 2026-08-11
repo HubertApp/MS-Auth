@@ -30,6 +30,17 @@ export class AuthResolver {
     return { accessToken: this.authService.getJwtToken(user) };
   }
 
+  @Mutation(() => Auth)
+  async loginAdmin(@Args('email') email: string, @Args('password') password: string) {
+
+    const userAdmin = await this.authService.findUserAdmin({
+      email: email,
+      password: password,
+    });
+
+    return { accessToken: this.authService.getJwtToken(userAdmin) };
+  }
+
   // @Mutation(() => User)
   // async refreshToken(
   //     @Args('refreshToken') refreshToken: string,
