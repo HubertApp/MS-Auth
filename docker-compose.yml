@@ -1,5 +1,4 @@
 services:
-
   service-auth:
     build: .
     container_name: service-auth
@@ -14,7 +13,15 @@ services:
       - OTEL_TRACES_EXPORTER=otlp
       - OTEL_LOGS_EXPORTER=otlp
     ports:
-      - "3007:3007"
+      - "3004:3000"
+    env_file:
+      - .env
+    networks:
+        - hubert-network
 
 volumes:
   mongo_data:
+
+networks:
+  hubert-network:
+    external: true
