@@ -4,6 +4,7 @@ import { GraphQLClient, gql } from 'graphql-request';
 import { CreateAuthInput } from './dto/create-auth.input';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
+import { AdminAuthInput } from './dto/admin-auth.input';
 
 @Injectable()
 export class AuthService {
@@ -43,6 +44,38 @@ export class AuthService {
       console.error("Erreur lors de l'appel à MS-User: " + error);
       throw new Error(
         "Impossible de synchroniser l'utilisateur avec MS-User : " + error,
+      );
+    }
+  }
+
+
+  async findUserAdmin(userAdmin: AdminAuthInput): Promise<any> {
+    const client = new GraphQLClient('http://service-admin-user:3011/graphql');
+
+    const FIND_ADMIN_QUERY = gql`
+      query FindUser($input: AdminAuthInput!) {
+        authAdminUserByUserAndPassword(adminUserInput: $input) {
+          email
+          pseudo
+          age
+          role
+        }
+      }
+    `;
+
+    try {
+      const response: any = await client.request(FIND_ADMIN_QUERY, {
+        input: {
+          email: userAdmin.email,
+          password: userAdmin.password,
+        },
+      });
+
+      return response.findAdminUser;
+    } catch (error) {
+      console.error("Erreur lors de l'appel à MS-User: " + error);
+      throw new Error(
+        "Impossible de synchroniser l'utilisateur avec MS-User-Admin : " + error,
       );
     }
   }
