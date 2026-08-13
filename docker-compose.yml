@@ -13,7 +13,11 @@ services:
       - OTEL_TRACES_EXPORTER=otlp
       - OTEL_LOGS_EXPORTER=otlp
     ports:
-      - "3004:3000"
+      # .env fixe PORT=3007 : c'est le port réellement écouté dans le
+      # conteneur (voir main.ts, process.env.PORT ?? 3000). Le mapping doit
+      # cibler ce port interne, pas 3000 (sinon rien n'écoute côté conteneur
+      # et rover/curl obtiennent une connexion qui ne répond jamais).
+      - "3004:3007"
     env_file:
       - .env
     networks:

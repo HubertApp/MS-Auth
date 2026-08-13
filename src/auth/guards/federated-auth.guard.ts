@@ -10,6 +10,7 @@ export class FederatedAuthGuard implements CanActivate {
 
     const authState = headers['x-auth-state'];
     const userId = headers['x-user-id'];
+    console.log('userId: ', userId);
 
     if (authState && authState !== 'VALID') {
       throw new UnauthorizedException('Token invalide');
