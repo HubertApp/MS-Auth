@@ -16,16 +16,22 @@ export class AuthResolver {
       audience: process.env.GOOGLE_CLIENT_ID,
     });
 
+    console.log('Ticket:', ticket);
+
     const payload = ticket.getPayload();
     if (!payload) throw new Error('ID token invalide');
+    console.log('Payload:', payload);
 
     const user = await this.authService.findOrCreateUser({
       googleId: payload.sub,
       email: payload.email!,
       pseudo: payload.given_name || payload.name!,
+      photo: payload.picture,
       age: 0,
       role: 'USER',
     });
+
+    console.log('Utilisateur trouvé ou créé:', user);
 
     return { accessToken: this.authService.getJwtToken(user) };
   }
