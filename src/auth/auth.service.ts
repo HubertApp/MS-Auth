@@ -14,7 +14,7 @@ export class AuthService {
   ) {}
 
   async findOrCreateUser(user: CreateAuthInput): Promise<any> {
-    const client = new GraphQLClient('http://service-user:3001/graphql');
+    const client = new GraphQLClient(process.env.MS_USER_LINK || 'http://service-user:3001/graphql'  );
 
     const CREATE_USER_MUTATION = gql`
       mutation CreateUser($input: CreateUserInput!) {
@@ -22,6 +22,7 @@ export class AuthService {
           googleId
           email
           pseudo
+          photo
           age
           role
         }
@@ -34,6 +35,7 @@ export class AuthService {
           googleId: user.googleId,
           email: user.email,
           pseudo: user.pseudo,
+          photo: user.photo,
           age: user.age,
           role: user.role,
         },
