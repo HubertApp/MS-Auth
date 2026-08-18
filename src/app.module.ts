@@ -6,9 +6,15 @@ import {
 } from '@nestjs/apollo';
 import { AuthModule } from './auth/auth.module';
 import { ConfigModule } from '@nestjs/config';
+import { OpenTelemetryModule } from 'nestjs-otel';
 
 @Module({
   imports: [
+       OpenTelemetryModule.forRoot({
+      metrics: {
+        hostMetrics: true,
+      },
+    }),
     ConfigModule.forRoot({
       isGlobal: true,
     }),
