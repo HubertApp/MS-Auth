@@ -89,6 +89,54 @@ describe('AuthService', () => {
     });
   });
 
+  describe('findUserAdmin', () => {
+    const mockAdminInput = { email: 'admin@test.com', password: 'secret' };
+
+    it('should return admin user data when GraphQL request succeeds', async () => {
+      // Le champ retourné par le serveur est authAdminUserByUserAndPassword
+      // (voir FIND_ADMIN_QUERY) -- pas findAdminUser.
+      mockedRequest.mockResolvedValue({
+        authAdminUserByUserAndPassword: {
+          email: mockAdminInput.email,
+          pseudo: 'Admin',
+          age: 40,
+          role: 'ADMIN',
+        },
+      });
+
+      const result = await service.findUserAdmin(mockAdminInput);
+
+      expect(result).toEqual({
+        email: mockAdminInput.email,
+        pseudo: 'Admin',
+        age: 40,
+        role: 'ADMIN',
+      });
+      expect(GraphQLClient).toHaveBeenCalledWith('http://service-admin-user:3011/graphql');
+      expect(mockedRequest.mock.calls[0][1]).toEqual({
+        input: { email: mockAdminInput.email, password: mockAdminInput.password },
+      });
+    });
+
+    it('should throw a descriptive error when GraphQL request fails', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      mockedRequest.mockRejectedValue(new Error('API Error'));
+
+      await expect(service.findUserAdmin(mockAdminInput)).rejects.toThrow(
+        "Impossible de synchroniser l'utilisateur avec MS-User-Admin",
+      );
+      consoleSpy.mockRestore();
+    });
+
+    it('should return undefined when the server responds without the expected field (defensive regression check)', async () => {
+      mockedRequest.mockResolvedValue({ someUnexpectedShape: true });
+
+      const result = await service.findUserAdmin(mockAdminInput);
+
+      expect(result).toBeUndefined();
+    });
+  });
+
   describe('getJwtToken', () => {
     it('should sign payload and return a token', () => {
       const token = service.getJwtToken(mockUser);

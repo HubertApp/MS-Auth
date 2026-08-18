@@ -73,7 +73,7 @@ export class AuthService {
         },
       });
 
-      return response.findAdminUser;
+      return response.authAdminUserByUserAndPassword;
     } catch (error) {
       console.error("Erreur lors de l'appel à MS-User: " + error);
       throw new Error(

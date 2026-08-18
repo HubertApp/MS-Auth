@@ -1,3 +1,7 @@
+import { otelSDK } from './otel-setup';
+
+otelSDK.start();
+
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
