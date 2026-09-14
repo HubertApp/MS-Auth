@@ -1,6 +1,10 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthResolver } from '../../src/auth/auth.resolver';
 import { AuthService } from '../../src/auth/auth.service';
+import { UnauthorizedException } from '../../src/auth/exception/unauthorized.exception';
+import { InvalidCredentialsException } from '../../src/auth/exception/invalid-credentials.exception';
+import { UpstreamServiceException } from '../../src/auth/exception/upstream-service.exception';
 
 const mockVerifyIdToken = jest.fn();
 
@@ -15,6 +19,8 @@ describe('AuthResolver', () => {
   let authService: AuthService;
 
   beforeEach(async () => {
+    mockVerifyIdToken.mockReset();
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthResolver,
@@ -78,8 +84,42 @@ describe('AuthResolver', () => {
         getPayload: () => null,
       });
 
-      await expect(resolver.loginWithGoogle('invalid-id-token')).rejects.toThrow('ID token invalide');
+      await expect(
+        resolver.loginWithGoogle('invalid-id-token'),
+      ).rejects.toThrow('ID token invalide');
       expect(authService.findOrCreateUser).not.toHaveBeenCalled();
+    });
+
+    it('should surface a missing payload as a 401 UNAUTHENTICATED', async () => {
+      mockVerifyIdToken.mockResolvedValue({ getPayload: () => null });
+
+      await expect(
+        resolver.loginWithGoogle('invalid-id-token'),
+      ).rejects.toMatchObject({
+        extensions: { code: 'UNAUTHENTICATED', http: { status: 401 } },
+      });
+    });
+
+    it('should turn a rejected Google verification into a 401 instead of a 500', async () => {
+      mockVerifyIdToken.mockRejectedValue(new Error('Token used too late'));
+
+      await expect(
+        resolver.loginWithGoogle('expired-id-token'),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(authService.findOrCreateUser).not.toHaveBeenCalled();
+    });
+
+    it('should not echo the rejected id token back to the client', async () => {
+      mockVerifyIdToken.mockRejectedValue(
+        new Error('Invalid token signature for eyJhbGciOi.SECRET-TOKEN'),
+      );
+
+      const thrown: unknown = await resolver
+        .loginWithGoogle('eyJhbGciOi.SECRET-TOKEN')
+        .catch((e: unknown) => e);
+
+      expect((thrown as Error).message).toBe('ID token invalide');
+      expect(JSON.stringify(thrown)).not.toContain('SECRET-TOKEN');
     });
   });
 
@@ -108,14 +148,35 @@ describe('AuthResolver', () => {
       expect(result).toEqual({ accessToken: 'admin-jwt-token' });
     });
 
-    it('should propagate the error when findUserAdmin fails (wrong credentials / MS-Admin_user unreachable)', async () => {
+    it('should propagate a wrong-credentials failure as a 401 without signing a token', async () => {
       (authService.findUserAdmin as jest.Mock).mockRejectedValue(
-        new Error("Impossible de synchroniser l'utilisateur avec MS-User-Admin : boom"),
+        new InvalidCredentialsException(),
       );
 
-      await expect(resolver.loginAdmin('admin@test.com', 'wrong')).rejects.toThrow(
-        "Impossible de synchroniser l'utilisateur avec MS-User-Admin",
+      await expect(
+        resolver.loginAdmin('admin@test.com', 'wrong'),
+      ).rejects.toMatchObject({
+        extensions: { code: 'INVALID_CREDENTIALS', http: { status: 401 } },
+      });
+      expect(authService.getJwtToken).not.toHaveBeenCalled();
+    });
+
+    it('should propagate an unreachable admin service as a 503', async () => {
+      (authService.findUserAdmin as jest.Mock).mockRejectedValue(
+        new UpstreamServiceException(
+          'Service administrateur indisponible',
+          'MS-Admin_user',
+        ),
       );
+
+      await expect(
+        resolver.loginAdmin('admin@test.com', 'secret'),
+      ).rejects.toMatchObject({
+        extensions: {
+          code: 'UPSTREAM_SERVICE_UNAVAILABLE',
+          http: { status: 503 },
+        },
+      });
       expect(authService.getJwtToken).not.toHaveBeenCalled();
     });
   });

@@ -10,7 +10,7 @@ import { OpenTelemetryModule } from 'nestjs-otel';
 
 @Module({
   imports: [
-       OpenTelemetryModule.forRoot({
+    OpenTelemetryModule.forRoot({
       metrics: {
         hostMetrics: true,
       },
