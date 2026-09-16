@@ -8,7 +8,7 @@ lint:
 	$(NPM) run lint
 
 test:
-	$(NPM) run test -- --coverage
+	$(NPM) test -- --coverage
 
 
 validate: install lint test
