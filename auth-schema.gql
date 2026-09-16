@@ -8,4 +8,5 @@ type Auth {
 
 type Mutation {
   loginWithGoogle(idToken: String!): Auth!
+  loginAdmin(email: String!, password: String!): Auth!
 }
