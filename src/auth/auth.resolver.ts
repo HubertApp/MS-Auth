@@ -60,6 +60,9 @@ export class AuthResolver {
     return { accessToken: this.authService.getJwtToken(userAdmin) };
   }
 
+
+// Dans le futur implémenter cette logique et un moyen de révocation des tokens
+// Pour l'instant on accepte une durée de vie d'un jeton d'une heure
   // @Mutation(() => User)
   // async refreshToken(
   //     @Args('refreshToken') refreshToken: string,
