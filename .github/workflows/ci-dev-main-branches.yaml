@@ -47,14 +47,14 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push Service User
+      - name: Build and push Service Auth
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/service-user:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/service-user:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/service-auth:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/service-auth:${{ github.sha }}
 
     #   - name: SonarCloud Scan
     #     uses: SonarSource/sonarcloud-github-action@master
