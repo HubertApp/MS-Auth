@@ -45,7 +45,6 @@ export class AuthResolver {
       role: 'USER',
     });
 
-    this.logger.log(`Utilisateur connecté avec Google : ${user.email}`);
 
     return { accessToken: this.authService.getJwtToken(user) };
   }

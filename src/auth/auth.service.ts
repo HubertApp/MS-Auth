@@ -120,6 +120,8 @@ export class AuthService {
       );
     }
 
+    this.logger.log(`Utilisateur connecté avec Google : ${maskEmail(user.email)}`);
+
     return response.createUser;
   }
 

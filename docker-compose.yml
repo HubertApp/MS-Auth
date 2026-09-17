@@ -3,15 +3,16 @@ services:
     build: .
     container_name: service-auth
     labels:
-      logging: "promtail"
+      logging: "enabled"
       service: "service-auth"
     environment:
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
       - OTEL_SERVICE_NAME=service-auth
-      - OTEL_RESOURCE_ATTRIBUTES=service.name=service-auth,deployment.environment=development
-      - OTEL_METRICS_EXPORTER=otlp
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
       - OTEL_TRACES_EXPORTER=otlp
-      - OTEL_LOGS_EXPORTER=otlp
+      - OTEL_METRICS_EXPORTER=otlp
+      - OTEL_LOGS_EXPORTER=none
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=development
     ports:
       - "3004:3004"
     env_file:
