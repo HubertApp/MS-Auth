@@ -1,6 +1,10 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthResolver } from '../../src/auth/auth.resolver';
 import { AuthService } from '../../src/auth/auth.service';
+import { UnauthorizedException } from '../../src/auth/exception/unauthorized.exception';
+import { InvalidCredentialsException } from '../../src/auth/exception/invalid-credentials.exception';
+import { UpstreamServiceException } from '../../src/auth/exception/upstream-service.exception';
 
 const mockVerifyIdToken = jest.fn();
 
@@ -15,6 +19,8 @@ describe('AuthResolver', () => {
   let authService: AuthService;
 
   beforeEach(async () => {
+    mockVerifyIdToken.mockReset();
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthResolver,
@@ -22,6 +28,7 @@ describe('AuthResolver', () => {
           provide: AuthService,
           useValue: {
             findOrCreateUser: jest.fn(),
+            findUserAdmin: jest.fn(),
             getJwtToken: jest.fn(),
           },
         },
@@ -77,8 +84,100 @@ describe('AuthResolver', () => {
         getPayload: () => null,
       });
 
-      await expect(resolver.loginWithGoogle('invalid-id-token')).rejects.toThrow('ID token invalide');
+      await expect(
+        resolver.loginWithGoogle('invalid-id-token'),
+      ).rejects.toThrow('ID token invalide');
       expect(authService.findOrCreateUser).not.toHaveBeenCalled();
+    });
+
+    it('should surface a missing payload as a 401 UNAUTHENTICATED', async () => {
+      mockVerifyIdToken.mockResolvedValue({ getPayload: () => null });
+
+      await expect(
+        resolver.loginWithGoogle('invalid-id-token'),
+      ).rejects.toMatchObject({
+        extensions: { code: 'UNAUTHENTICATED', http: { status: 401 } },
+      });
+    });
+
+    it('should turn a rejected Google verification into a 401 instead of a 500', async () => {
+      mockVerifyIdToken.mockRejectedValue(new Error('Token used too late'));
+
+      await expect(
+        resolver.loginWithGoogle('expired-id-token'),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(authService.findOrCreateUser).not.toHaveBeenCalled();
+    });
+
+    it('should not echo the rejected id token back to the client', async () => {
+      mockVerifyIdToken.mockRejectedValue(
+        new Error('Invalid token signature for eyJhbGciOi.SECRET-TOKEN'),
+      );
+
+      const thrown: unknown = await resolver
+        .loginWithGoogle('eyJhbGciOi.SECRET-TOKEN')
+        .catch((e: unknown) => e);
+
+      expect((thrown as Error).message).toBe('ID token invalide');
+      expect(JSON.stringify(thrown)).not.toContain('SECRET-TOKEN');
+    });
+  });
+
+  describe('loginAdmin', () => {
+    it('should call findUserAdmin with the provided credentials and return an access token', async () => {
+      (authService.findUserAdmin as jest.Mock).mockResolvedValue({
+        email: 'admin@test.com',
+        pseudo: 'Admin',
+        age: 40,
+        role: 'ADMIN',
+      });
+      (authService.getJwtToken as jest.Mock).mockReturnValue('admin-jwt-token');
+
+      const result = await resolver.loginAdmin('admin@test.com', 'secret');
+
+      expect(authService.findUserAdmin).toHaveBeenCalledWith({
+        email: 'admin@test.com',
+        password: 'secret',
+      });
+      expect(authService.getJwtToken).toHaveBeenCalledWith({
+        email: 'admin@test.com',
+        pseudo: 'Admin',
+        age: 40,
+        role: 'ADMIN',
+      });
+      expect(result).toEqual({ accessToken: 'admin-jwt-token' });
+    });
+
+    it('should propagate a wrong-credentials failure as a 401 without signing a token', async () => {
+      (authService.findUserAdmin as jest.Mock).mockRejectedValue(
+        new InvalidCredentialsException(),
+      );
+
+      await expect(
+        resolver.loginAdmin('admin@test.com', 'wrong'),
+      ).rejects.toMatchObject({
+        extensions: { code: 'INVALID_CREDENTIALS', http: { status: 401 } },
+      });
+      expect(authService.getJwtToken).not.toHaveBeenCalled();
+    });
+
+    it('should propagate an unreachable admin service as a 503', async () => {
+      (authService.findUserAdmin as jest.Mock).mockRejectedValue(
+        new UpstreamServiceException(
+          'Service administrateur indisponible',
+          'MS-Admin_user',
+        ),
+      );
+
+      await expect(
+        resolver.loginAdmin('admin@test.com', 'secret'),
+      ).rejects.toMatchObject({
+        extensions: {
+          code: 'UPSTREAM_SERVICE_UNAVAILABLE',
+          http: { status: 503 },
+        },
+      });
+      expect(authService.getJwtToken).not.toHaveBeenCalled();
     });
   });
 });

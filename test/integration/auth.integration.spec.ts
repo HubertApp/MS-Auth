@@ -30,8 +30,12 @@ describe('Auth integration tests', () => {
       modulusLength: 2048,
     });
 
-    process.env.JWT_PRIVATE_KEY = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
-    process.env.JWT_PUBLIC_KEY = publicKey.export({ type: 'spki', format: 'pem' }).toString();
+    process.env.JWT_PRIVATE_KEY = privateKey
+      .export({ type: 'pkcs8', format: 'pem' })
+      .toString();
+    process.env.JWT_PUBLIC_KEY = publicKey
+      .export({ type: 'spki', format: 'pem' })
+      .toString();
 
     const { AppModule } = require('../../src/app.module');
 
@@ -92,5 +96,158 @@ describe('Auth integration tests', () => {
       idToken: 'valid-id-token',
       audience: 'test-client-id',
     });
+  });
+
+  it('should return a GraphQL error when the Google ID token payload is missing', async () => {
+    mockVerifyIdToken.mockResolvedValue({ getPayload: () => null });
+
+    const query = `mutation LoginWithGoogle($idToken: String!) {\n      loginWithGoogle(idToken: $idToken) {\n        accessToken\n      }\n    }`;
+
+    const response = await request(app.getHttpServer())
+      .post('/graphql')
+      .send({ query, variables: { idToken: 'invalid-id-token' } })
+      .expect(200);
+
+    expect(response.body.data).toBeNull();
+    expect(response.body.errors?.[0]?.message).toContain('ID token invalide');
+    expect(mockedRequest).not.toHaveBeenCalled();
+  });
+
+  it('should return a GraphQL error when MS-User is unreachable during loginWithGoogle', async () => {
+    mockVerifyIdToken.mockResolvedValue({
+      getPayload: () => ({
+        sub: 'google-456',
+        email: 'down@test.com',
+        given_name: 'Down',
+      }),
+    });
+    mockedRequest.mockRejectedValue(new Error('connect ECONNREFUSED'));
+
+    const query = `mutation LoginWithGoogle($idToken: String!) {\n      loginWithGoogle(idToken: $idToken) {\n        accessToken\n      }\n    }`;
+
+    const response = await request(app.getHttpServer())
+      .post('/graphql')
+      .send({ query, variables: { idToken: 'valid-id-token' } })
+      .expect(200);
+
+    expect(response.body.data).toBeNull();
+    expect(response.body.errors?.[0]?.message).toContain(
+      "Impossible de synchroniser l'utilisateur avec MS-User",
+    );
+  });
+
+  it('should return an access token for loginAdmin mutation with valid credentials', async () => {
+
+    mockedRequest.mockResolvedValue({
+      authAdminUserByUserAndPassword: {
+        email: 'admin@test.com',
+        pseudo: 'Admin',
+        age: 40,
+        role: 'ADMIN',
+      },
+    });
+
+    const query = `mutation LoginAdmin($email: String!, $password: String!) {\n      loginAdmin(email: $email, password: $password) {\n        accessToken\n      }\n    }`;
+
+    const response = await request(app.getHttpServer())
+      .post('/graphql')
+      .send({
+        query,
+        variables: { email: 'admin@test.com', password: 'secret' },
+      })
+      .expect(200);
+
+    const token = response.body?.data?.loginAdmin?.accessToken;
+    expect(token).toEqual(expect.any(String));
+    expect(token.split('.')).toHaveLength(3);
+    expect(mockedRequest.mock.calls[0][1]).toEqual({
+      input: { email: 'admin@test.com', password: 'secret' },
+    });
+  });
+
+  it('should return a 503 UPSTREAM_SERVICE_UNAVAILABLE for loginAdmin when MS-Admin_user is unreachable', async () => {
+    mockedRequest.mockRejectedValue(new Error('connect ECONNREFUSED'));
+
+    const query = `mutation LoginAdmin($email: String!, $password: String!) {\n      loginAdmin(email: $email, password: $password) {\n        accessToken\n      }\n    }`;
+
+    const response = await request(app.getHttpServer())
+      .post('/graphql')
+      .send({
+        query,
+        variables: { email: 'admin@test.com', password: 'secret' },
+      })
+      .expect(200);
+
+    expect(response.body.data).toBeNull();
+    expect(response.body.errors?.[0]?.message).toBe(
+      'Service administrateur indisponible',
+    );
+    expect(response.body.errors?.[0]?.extensions?.code).toBe(
+      'UPSTREAM_SERVICE_UNAVAILABLE',
+    );
+  });
+
+  it('should return a 401 INVALID_CREDENTIALS for loginAdmin when the password is wrong', async () => {
+    mockedRequest.mockResolvedValue({ authAdminUserByUserAndPassword: null });
+
+    const query = `mutation LoginAdmin($email: String!, $password: String!) {\n      loginAdmin(email: $email, password: $password) {\n        accessToken\n      }\n    }`;
+
+    const response = await request(app.getHttpServer())
+      .post('/graphql')
+      .send({
+        query,
+        variables: { email: 'admin@test.com', password: 'wrong' },
+      })
+      .expect(200);
+
+    expect(response.body.data).toBeNull();
+    expect(response.body.errors?.[0]?.message).toBe('Identifiants invalides');
+    expect(response.body.errors?.[0]?.extensions?.code).toBe(
+      'INVALID_CREDENTIALS',
+    );
+  });
+
+  it('should return a 401 INVALID_CREDENTIALS when MS-Admin_user rejects the credentials itself', async () => {
+    mockedRequest.mockRejectedValue(
+      Object.assign(new Error('GraphQL Error'), {
+        response: { errors: [{ extensions: { code: 'UNAUTHENTICATED' } }] },
+      }),
+    );
+
+    const query = `mutation LoginAdmin($email: String!, $password: String!) {\n      loginAdmin(email: $email, password: $password) {\n        accessToken\n      }\n    }`;
+
+    const response = await request(app.getHttpServer())
+      .post('/graphql')
+      .send({
+        query,
+        variables: { email: 'admin@test.com', password: 'wrong' },
+      })
+      .expect(200);
+
+    expect(response.body.data).toBeNull();
+    expect(response.body.errors?.[0]?.extensions?.code).toBe(
+      'INVALID_CREDENTIALS',
+    );
+  });
+
+  it('should never echo the submitted password back in a loginAdmin error', async () => {
+
+    mockedRequest.mockRejectedValue(
+      new Error(
+        'GraphQL Error: {"request":{"variables":{"input":{"password":"hunter2"}}}}',
+      ),
+    );
+
+    const query = `mutation LoginAdmin($email: String!, $password: String!) {\n      loginAdmin(email: $email, password: $password) {\n        accessToken\n      }\n    }`;
+
+    const response = await request(app.getHttpServer())
+      .post('/graphql')
+      .send({
+        query,
+        variables: { email: 'admin@test.com', password: 'hunter2' },
+      })
+      .expect(200);
+
+    expect(JSON.stringify(response.body)).not.toContain('hunter2');
   });
 });
