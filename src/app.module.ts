@@ -7,6 +7,9 @@ import {
 import { AuthModule } from './auth/auth.module';
 import { ConfigModule } from '@nestjs/config';
 import { OpenTelemetryModule } from 'nestjs-otel';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { GqlThrottlerGuard } from './auth/common/guards/gql-throttler.guard';
 
 @Module({
   imports: [
@@ -26,9 +29,22 @@ import { OpenTelemetryModule } from 'nestjs-otel';
         federation: 2,
       },
     }),
+    ThrottlerModule.forRoot({
+      throttlers: [
+        {
+          ttl: 60000,
+          limit: 10,
+        },
+      ],
+    }),
     AuthModule,
   ],
   controllers: [],
-  providers: [],
+  providers: [
+    {
+      provide: APP_GUARD, 
+      useClass: GqlThrottlerGuard 
+    },
+  ],
 })
 export class AppModule {}

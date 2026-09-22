@@ -5,6 +5,8 @@ import type { TokenPayload } from 'google-auth-library';
 import { AuthService } from './auth.service';
 import { Auth } from './entities/auth.entity';
 import { UnauthorizedException } from './exception/unauthorized.exception';
+import { Throttle } from '@nestjs/throttler';
+import { AdminAuthInput } from './dto/admin-auth.input';
 
 @Resolver()
 export class AuthResolver {
@@ -51,13 +53,9 @@ export class AuthResolver {
   }
 
   @Mutation(() => Auth)
-  async loginAdmin(
-    @Args('email') email: string,
-    @Args('password') password: string,
-  ): Promise<Auth> {
-
-    const userAdmin = await this.authService.findUserAdmin({ email, password });
-
+  @Throttle({ default: { limit:5, ttl: 900000}})
+  async loginAdmin(@Args('input') input: AdminAuthInput): Promise<Auth> {
+    const userAdmin = await this.authService.findUserAdmin(input);
     return { accessToken: this.authService.getJwtToken(userAdmin) };
   }
 

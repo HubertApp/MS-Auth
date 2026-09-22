@@ -126,7 +126,7 @@ describe('AuthService', () => {
 
     it('should return admin user data when GraphQL request succeeds', async () => {
       mockedRequest.mockResolvedValue({
-        authAdminUserByUserAndPassword: {
+        byEmailAndPassword: {
           email: mockAdminInput.email,
           pseudo: 'Admin',
           age: 40,
@@ -196,7 +196,7 @@ describe('AuthService', () => {
     });
 
     it('should throw a 401 when the server responds with a null admin (wrong password)', async () => {
-      mockedRequest.mockResolvedValue({ authAdminUserByUserAndPassword: null });
+      mockedRequest.mockResolvedValue({ byEmailAndPassword: null });
 
       await expect(service.findUserAdmin(mockAdminInput)).rejects.toMatchObject(
         {

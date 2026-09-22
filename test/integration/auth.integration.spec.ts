@@ -139,7 +139,7 @@ describe('Auth integration tests', () => {
   it('should return an access token for loginAdmin mutation with valid credentials', async () => {
 
     mockedRequest.mockResolvedValue({
-      authAdminUserByUserAndPassword: {
+      byEmailAndPassword: {
         email: 'admin@test.com',
         pseudo: 'Admin',
         age: 40,
@@ -188,7 +188,7 @@ describe('Auth integration tests', () => {
   });
 
   it('should return a 401 INVALID_CREDENTIALS for loginAdmin when the password is wrong', async () => {
-    mockedRequest.mockResolvedValue({ authAdminUserByUserAndPassword: null });
+    mockedRequest.mockResolvedValue({ byEmailAndPassword: null });
 
     const query = `mutation LoginAdmin($email: String!, $password: String!) {\n      loginAdmin(email: $email, password: $password) {\n        accessToken\n      }\n    }`;
 
