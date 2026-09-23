@@ -105,7 +105,7 @@ describe('MS-Auth (performance)', () => {
       mockedRequest.mockImplementation(async () => {
         await delay(SIMULATED_MS_ADMIN_LATENCY_MS);
         return {
-          authAdminUserByUserAndPassword: {
+          byEmailAndPassword: {
             email: 'admin@test.com',
             pseudo: 'Admin',
             age: 40,

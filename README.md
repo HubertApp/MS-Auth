@@ -16,7 +16,7 @@ Deux mutations sont exposées, toutes deux renvoyant un objet `Auth` contenant u
 
 `loginWithGoogle(idToken: String!)` est le parcours utilisateur nominal. Le resolver instancie un `OAuth2Client` de `google-auth-library` et vérifie l'`idToken` fourni par le client mobile ou web contre `GOOGLE_CLIENT_ID`. Le payload Google est ensuite transformé en utilisateur applicatif (`googleId` = `sub`, `email`, `pseudo` dérivé de `given_name` ou `name`, `photo`, `age` initialisé à 0, `role` à `USER`) puis transmis à MS-User via la mutation `createUser`, dont la sémantique côté serveur est de type « trouver ou créer ». Le JWT est finalement signé à partir de l'utilisateur retourné.
 
-`loginAdmin(email: String!, password: String!)` court-circuite Google : les identifiants sont transmis au service `service-admin-user` via la query `authAdminUserByUserAndPassword`, et un JWT est émis à partir de l'utilisateur administrateur renvoyé.
+`loginAdmin(email: String!, password: String!)` court-circuite Google : les identifiants sont transmis au service `service-admin-user` via la query `byEmailAndPassword`, et un JWT est émis à partir de l'utilisateur administrateur renvoyé.
 
 Le fichier `auth-schema.gql` versionné dans le dépôt ne contient que `loginWithGoogle` : il s'agit d'un artefact généré datant d'avant l'ajout de `loginAdmin`, et il est régénéré à chaque démarrage.
 

@@ -13,6 +13,10 @@ type UpstreamErrorLike = {
   response?: { errors?: Array<{ extensions?: { code?: string } }> };
 };
 
+const SUPER_ADMIN_THRESHOLD = 8;
+
+const roleFromAuthLevel = (authLevel: number): string =>
+  authLevel >= SUPER_ADMIN_THRESHOLD ? 'SUPER_ADMIN' : 'ADMIN';
 
 const AUTH_FAILURE_CODES = new Set([
   'UNAUTHENTICATED',
@@ -127,17 +131,24 @@ export class AuthService {
     const client = new GraphQLClient(this.adminServiceUrl);
 
     const FIND_ADMIN_QUERY = gql`
-      query FindUser($input: AdminAuthInput!) {
-        authAdminUserByUserAndPassword(adminUserInput: $input) {
-          email
-          pseudo
-          age
-          role
-        }
-      }
-    `;
 
-    let response: { authAdminUserByUserAndPassword?: CreateAuthInput };
+    query FindAdmin($email: String!, $password: String!) {
+      byEmailAndPassword(email: $email, password: $password) {
+        id
+        firstname
+        lastname
+        email
+        authLevel
+      }
+    }
+  `;
+
+  let response: {
+    byEmailAndPassword?: {
+      id: string; firstname: string; lastname: string;
+      email: string; authLevel: number;
+    };
+  };
 
     try {
       response = await client.request(FIND_ADMIN_QUERY, {
@@ -162,7 +173,7 @@ export class AuthService {
       );
     }
 
-    const admin = response?.authAdminUserByUserAndPassword;
+    const admin = response?.byEmailAndPassword;
     if (!admin) {
       this.logger.warn(
         `Connexion admin refusée pour ${maskEmail(userAdmin.email)}`,
@@ -170,7 +181,13 @@ export class AuthService {
       throw new InvalidCredentialsException();
     }
 
-    return admin;
+    return {
+        googleId: admin.id,
+        email: admin.email,
+        pseudo: `${admin.firstname} ${admin.lastname}`.trim(),
+        age: 0,
+        role: roleFromAuthLevel(admin.authLevel),
+      };
   }
 
   getJwtToken(user: CreateAuthInput): string {
