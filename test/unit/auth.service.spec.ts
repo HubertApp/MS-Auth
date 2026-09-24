@@ -16,9 +16,9 @@ jest.mock('graphql-request', () => ({
     request: mockedRequest,
   })),
   gql: jest.fn((s) => s),
+  ClientError: class ClientError extends Error {},
 }));
 
-/** Erreur telle que graphql-request la lève quand le serveur distant répond des erreurs GraphQL. */
 const upstreamError = (code: string) =>
   Object.assign(new Error('GraphQL Error'), {
     response: { errors: [{ extensions: { code } }] },
@@ -124,33 +124,65 @@ describe('AuthService', () => {
   describe('findUserAdmin', () => {
     const mockAdminInput = { email: 'admin@test.com', password: 'secret' };
 
+    const mockAdmin = (authLevel: number) => ({
+      byEmailAndPassword: {
+        id: 'admin-1',
+        firstname: 'Ada',
+        lastname: 'Admin',
+        email: mockAdminInput.email,
+        authLevel,
+      },
+    });
+
     it('should return admin user data when GraphQL request succeeds', async () => {
-      mockedRequest.mockResolvedValue({
-        byEmailAndPassword: {
-          email: mockAdminInput.email,
-          pseudo: 'Admin',
-          age: 40,
-          role: 'ADMIN',
-        },
-      });
+      mockedRequest.mockResolvedValue(mockAdmin(5));
 
       const result = await service.findUserAdmin(mockAdminInput);
 
       expect(result).toEqual({
+        googleId: 'admin-1',
         email: mockAdminInput.email,
-        pseudo: 'Admin',
-        age: 40,
+        pseudo: 'Ada Admin',
+        age: 0,
         role: 'ADMIN',
       });
       expect(GraphQLClient).toHaveBeenCalledWith(
-        'http://service-admin-user:3011/graphql',
+        'http://service-adminuser:3003/graphql',
       );
       expect(mockedRequest.mock.calls[0][1]).toEqual({
-        input: {
-          email: mockAdminInput.email,
-          password: mockAdminInput.password,
-        },
+        email: mockAdminInput.email,
+        password: mockAdminInput.password,
       });
+    });
+
+    it('should map authLevel >= 8 to SUPER_ADMIN', async () => {
+      mockedRequest.mockResolvedValue(mockAdmin(8));
+
+      const result = await service.findUserAdmin(mockAdminInput);
+
+      expect(result.role).toBe('SUPER_ADMIN');
+    });
+
+    it('should use MS_ADMIN_USER_LINK when it is configured', async () => {
+      (configService.get as jest.Mock).mockImplementation((key: string) =>
+        key === 'MS_ADMIN_USER_LINK'
+          ? 'http://custom-admin/graphql'
+          : undefined,
+      );
+      const module = await Test.createTestingModule({
+        providers: [
+          AuthService,
+          { provide: JwtService, useValue: jwtService },
+          { provide: ConfigService, useValue: configService },
+        ],
+      }).compile();
+      mockedRequest.mockResolvedValue(mockAdmin(5));
+
+      await module.get(AuthService).findUserAdmin(mockAdminInput);
+
+      expect(GraphQLClient).toHaveBeenLastCalledWith(
+        'http://custom-admin/graphql',
+      );
     });
 
     it('should report MS-Admin_user being unreachable as a 503, not as an auth failure', async () => {

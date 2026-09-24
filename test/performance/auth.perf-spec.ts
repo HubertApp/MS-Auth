@@ -20,6 +20,7 @@ const mockVerifyIdToken = jest.fn();
 jest.mock('graphql-request', () => ({
   GraphQLClient: jest.fn().mockImplementation(() => ({ request: mockedRequest })),
   gql: jest.fn((s) => s),
+  ClientError: class ClientError extends Error {},
 }));
 
 jest.mock('google-auth-library', () => ({
@@ -78,10 +79,7 @@ describe('MS-Auth (performance)', () => {
       let callIndex = 0;
       mockedRequest.mockImplementation(async (_query: unknown, vars: any) => {
         callIndex += 1;
-        // Le tout premier appel simule MS-User bloqué longtemps : les
-        // autres connexions concurrentes ne doivent pas en pâtir (chaque
-        // requête HTTP GraphQL entrante a son propre call resolver, pas de
-        // verrou partagé côté AuthResolver/AuthService).
+        
         if (callIndex === 1) await delay(2000);
         else await delay(SIMULATED_MS_USER_LATENCY_MS);
         return { createUser: { ...vars.input } };

@@ -133,7 +133,10 @@ describe('AuthResolver', () => {
       });
       (authService.getJwtToken as jest.Mock).mockReturnValue('admin-jwt-token');
 
-      const result = await resolver.loginAdmin('admin@test.com', 'secret');
+      const result = await resolver.loginAdmin({
+        email: 'admin@test.com',
+        password: 'secret',
+      });
 
       expect(authService.findUserAdmin).toHaveBeenCalledWith({
         email: 'admin@test.com',
@@ -154,7 +157,7 @@ describe('AuthResolver', () => {
       );
 
       await expect(
-        resolver.loginAdmin('admin@test.com', 'wrong'),
+        resolver.loginAdmin({ email: 'admin@test.com', password: 'wrong' }),
       ).rejects.toMatchObject({
         extensions: { code: 'INVALID_CREDENTIALS', http: { status: 401 } },
       });
@@ -170,7 +173,7 @@ describe('AuthResolver', () => {
       );
 
       await expect(
-        resolver.loginAdmin('admin@test.com', 'secret'),
+        resolver.loginAdmin({ email: 'admin@test.com', password: 'secret' }),
       ).rejects.toMatchObject({
         extensions: {
           code: 'UPSTREAM_SERVICE_UNAVAILABLE',

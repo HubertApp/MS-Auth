@@ -11,6 +11,8 @@ jest.mock('graphql-request', () => ({
     request: mockedRequest,
   })),
   gql: jest.fn((s) => s),
+
+  ClientError: class ClientError extends Error {},
 }));
 
 jest.mock('google-auth-library', () => ({
@@ -45,7 +47,8 @@ describe('Auth integration tests', () => {
 
     app = moduleFixture.createNestApplication();
     await app.init();
-  });
+
+  }, 60_000);
 
   beforeEach(() => {
     mockedRequest.mockReset();
@@ -56,7 +59,7 @@ describe('Auth integration tests', () => {
     if (app) {
       await app.close();
     }
-  });
+  }, 30_000);
 
   it('should return an access token for loginWithGoogle mutation', async () => {
     const payload = {
@@ -137,23 +140,23 @@ describe('Auth integration tests', () => {
   });
 
   it('should return an access token for loginAdmin mutation with valid credentials', async () => {
-
     mockedRequest.mockResolvedValue({
       byEmailAndPassword: {
+        id: 'admin-1',
+        firstname: 'Ada',
+        lastname: 'Admin',
         email: 'admin@test.com',
-        pseudo: 'Admin',
-        age: 40,
-        role: 'ADMIN',
+        authLevel: 5,
       },
     });
 
-    const query = `mutation LoginAdmin($email: String!, $password: String!) {\n      loginAdmin(email: $email, password: $password) {\n        accessToken\n      }\n    }`;
+    const query = `mutation LoginAdmin($input: AdminAuthInput!) {\n      loginAdmin(input: $input) {\n        accessToken\n      }\n    }`;
 
     const response = await request(app.getHttpServer())
       .post('/graphql')
       .send({
         query,
-        variables: { email: 'admin@test.com', password: 'secret' },
+        variables: { input: { email: 'admin@test.com', password: 'secret' } },
       })
       .expect(200);
 
@@ -161,20 +164,21 @@ describe('Auth integration tests', () => {
     expect(token).toEqual(expect.any(String));
     expect(token.split('.')).toHaveLength(3);
     expect(mockedRequest.mock.calls[0][1]).toEqual({
-      input: { email: 'admin@test.com', password: 'secret' },
+      email: 'admin@test.com',
+      password: 'secret',
     });
   });
 
   it('should return a 503 UPSTREAM_SERVICE_UNAVAILABLE for loginAdmin when MS-Admin_user is unreachable', async () => {
     mockedRequest.mockRejectedValue(new Error('connect ECONNREFUSED'));
 
-    const query = `mutation LoginAdmin($email: String!, $password: String!) {\n      loginAdmin(email: $email, password: $password) {\n        accessToken\n      }\n    }`;
+    const query = `mutation LoginAdmin($input: AdminAuthInput!) {\n      loginAdmin(input: $input) {\n        accessToken\n      }\n    }`;
 
     const response = await request(app.getHttpServer())
       .post('/graphql')
       .send({
         query,
-        variables: { email: 'admin@test.com', password: 'secret' },
+        variables: { input: { email: 'admin@test.com', password: 'secret' } },
       })
       .expect(200);
 
@@ -190,13 +194,13 @@ describe('Auth integration tests', () => {
   it('should return a 401 INVALID_CREDENTIALS for loginAdmin when the password is wrong', async () => {
     mockedRequest.mockResolvedValue({ byEmailAndPassword: null });
 
-    const query = `mutation LoginAdmin($email: String!, $password: String!) {\n      loginAdmin(email: $email, password: $password) {\n        accessToken\n      }\n    }`;
+    const query = `mutation LoginAdmin($input: AdminAuthInput!) {\n      loginAdmin(input: $input) {\n        accessToken\n      }\n    }`;
 
     const response = await request(app.getHttpServer())
       .post('/graphql')
       .send({
         query,
-        variables: { email: 'admin@test.com', password: 'wrong' },
+        variables: { input: { email: 'admin@test.com', password: 'wrong' } },
       })
       .expect(200);
 
@@ -214,13 +218,13 @@ describe('Auth integration tests', () => {
       }),
     );
 
-    const query = `mutation LoginAdmin($email: String!, $password: String!) {\n      loginAdmin(email: $email, password: $password) {\n        accessToken\n      }\n    }`;
+    const query = `mutation LoginAdmin($input: AdminAuthInput!) {\n      loginAdmin(input: $input) {\n        accessToken\n      }\n    }`;
 
     const response = await request(app.getHttpServer())
       .post('/graphql')
       .send({
         query,
-        variables: { email: 'admin@test.com', password: 'wrong' },
+        variables: { input: { email: 'admin@test.com', password: 'wrong' } },
       })
       .expect(200);
 
@@ -231,20 +235,19 @@ describe('Auth integration tests', () => {
   });
 
   it('should never echo the submitted password back in a loginAdmin error', async () => {
-
     mockedRequest.mockRejectedValue(
       new Error(
         'GraphQL Error: {"request":{"variables":{"input":{"password":"hunter2"}}}}',
       ),
     );
 
-    const query = `mutation LoginAdmin($email: String!, $password: String!) {\n      loginAdmin(email: $email, password: $password) {\n        accessToken\n      }\n    }`;
+    const query = `mutation LoginAdmin($input: AdminAuthInput!) {\n      loginAdmin(input: $input) {\n        accessToken\n      }\n    }`;
 
     const response = await request(app.getHttpServer())
       .post('/graphql')
       .send({
         query,
-        variables: { email: 'admin@test.com', password: 'hunter2' },
+        variables: { input: { email: 'admin@test.com', password: 'hunter2' } },
       })
       .expect(200);
 

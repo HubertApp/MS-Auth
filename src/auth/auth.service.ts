@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { GraphQLClient, gql } from 'graphql-request';
+import { ClientError, GraphQLClient, gql } from 'graphql-request';
 import { CreateAuthInput } from './dto/create-auth.input';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
@@ -11,6 +11,16 @@ import { ServiceMisconfiguredException } from './exception/service-misconfigured
 
 type UpstreamErrorLike = {
   response?: { errors?: Array<{ extensions?: { code?: string } }> };
+};
+
+type FindAdminResponse = {
+  byEmailAndPassword?: {
+    id: string;
+    firstname: string;
+    lastname: string;
+    email: string;
+    authLevel: number;
+  } | null;
 };
 
 const SUPER_ADMIN_THRESHOLD = 8;
@@ -35,7 +45,6 @@ const isAuthenticationFailure = (error: unknown): boolean => {
     errors.some((e) => AUTH_FAILURE_CODES.has(String(e?.extensions?.code)))
   );
 };
-
 
 const describeError = (error: unknown): string => {
   if (!(error instanceof Error)) return 'erreur inconnue';
@@ -70,9 +79,11 @@ export class AuthService {
     this.userServiceUrl =
       this.configService.get<string>('MS_USER_LINK') ??
       'http://service-user:3001/graphql';
+
     this.adminServiceUrl =
       this.configService.get<string>('MS_ADMIN_USER_LINK') ??
-      'http://service-admin-user:3011/graphql';
+      this.configService.get<string>('ADMIN_USER_SERVICE_URL') ??
+      'http://service-adminuser:3003/graphql';
   }
 
   async findOrCreateUser(user: CreateAuthInput): Promise<CreateAuthInput> {
@@ -128,37 +139,28 @@ export class AuthService {
   }
 
   async findUserAdmin(userAdmin: AdminAuthInput): Promise<CreateAuthInput> {
+    const FIND_ADMIN_QUERY = gql`
+      query FindAdmin($email: String!, $password: String!) {
+        byEmailAndPassword(email: $email, password: $password) {
+          id
+          firstname
+          lastname
+          email
+          authLevel
+        }
+      }
+    `;
+
     const client = new GraphQLClient(this.adminServiceUrl);
 
-    const FIND_ADMIN_QUERY = gql`
-
-    query FindAdmin($email: String!, $password: String!) {
-      byEmailAndPassword(email: $email, password: $password) {
-        id
-        firstname
-        lastname
-        email
-        authLevel
-      }
-    }
-  `;
-
-  let response: {
-    byEmailAndPassword?: {
-      id: string; firstname: string; lastname: string;
-      email: string; authLevel: number;
-    };
-  };
+    let response: FindAdminResponse;
 
     try {
-      response = await client.request(FIND_ADMIN_QUERY, {
-        input: {
-          email: userAdmin.email,
-          password: userAdmin.password,
-        },
+      response = await client.request<FindAdminResponse>(FIND_ADMIN_QUERY, {
+        email: userAdmin.email,
+        password: userAdmin.password,
       });
     } catch (error) {
-
       if (isAuthenticationFailure(error)) {
         this.logger.warn(
           `Connexion admin refusée pour ${maskEmail(userAdmin.email)}`,
@@ -166,7 +168,17 @@ export class AuthService {
         throw new InvalidCredentialsException();
       }
 
-      this.logger.error(`MS-Admin_user injoignable (${describeError(error)})`);
+      if (error instanceof ClientError) {
+        this.logger.error(
+          `Erreur GraphQL MS-Admin_user : ${JSON.stringify(error.response.errors)}`,
+        );
+      } else {
+        // Réseau, DNS, timeout, service arrêté...
+        this.logger.error(
+          `MS-Admin_user injoignable (${describeError(error)})`,
+        );
+      }
+
       throw new UpstreamServiceException(
         'Service administrateur indisponible',
         'MS-Admin_user',
@@ -182,16 +194,15 @@ export class AuthService {
     }
 
     return {
-        googleId: admin.id,
-        email: admin.email,
-        pseudo: `${admin.firstname} ${admin.lastname}`.trim(),
-        age: 0,
-        role: roleFromAuthLevel(admin.authLevel),
-      };
+      googleId: admin.id,
+      email: admin.email,
+      pseudo: `${admin.firstname} ${admin.lastname}`.trim(),
+      age: 0,
+      role: roleFromAuthLevel(admin.authLevel),
+    };
   }
 
   getJwtToken(user: CreateAuthInput): string {
-
     if (!user?.googleId && !user?.email) {
       this.logger.error(
         "Tentative d'émission d'un token sans identifiant de sujet",
