@@ -1,6 +1,5 @@
 import { GraphQLError } from 'graphql';
 
-
 export class ServiceMisconfiguredException extends GraphQLError {
   constructor(message: string = 'Service mal configuré') {
     super(message, {

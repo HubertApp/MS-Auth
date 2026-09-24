@@ -10,12 +10,10 @@ export class FederatedAuthGuard implements CanActivate {
 
     const authState = headers['x-auth-state'];
     const userId = headers['x-user-id'];
-    console.log('userId: ', userId);
 
     if (authState !== 'VALID' || !userId) {
       throw new UnauthorizedException('Token invalide');
     }
-
 
     ctx.req.user = {
       googleId: String(userId),

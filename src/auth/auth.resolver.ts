@@ -26,7 +26,6 @@ export class AuthResolver {
       });
       payload = ticket.getPayload();
     } catch (error) {
-
       this.logger.warn(
         `Vérification du token Google échouée (${error instanceof Error ? error.name : 'erreur inconnue'})`,
       );
@@ -53,7 +52,7 @@ export class AuthResolver {
   }
 
   @Mutation(() => Auth)
-  @Throttle({ default: { limit:5, ttl: 900000}})
+  @Throttle({ default: { limit: 5, ttl: 900000 } })
   async loginAdmin(@Args('input') input: AdminAuthInput): Promise<Auth> {
     const userAdmin = await this.authService.findUserAdmin(input);
     return { accessToken: this.authService.getJwtToken(userAdmin) };
